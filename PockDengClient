@@ -1,0 +1,149 @@
+import socket
+import pygame
+import threading
+import time
+
+HOST = '192.168.0.76'
+PORT = 12345
+
+
+
+# create the screen
+scr_width = 1600
+scr_height = 900
+
+
+card_pic = [['Cards/A_Clover.png','Cards/A_Diamond.png','Cards/A_Heart.png','Cards/A_Spade.png'],
+            ['Cards/2_Clover.png','Cards/2_Diamond.png','Cards/2_Heart.png','Cards/2_Spade.png'],
+            ['Cards/3_Clover.png','Cards/3_Diamond.png','Cards/3_Heart.png','Cards/3_Spade.png'],
+            ['Cards/4_Clover.png','Cards/4_Diamond.png','Cards/4_Heart.png','Cards/4_Spade.png'],
+            ['Cards/5_Clover.png','Cards/5_Diamond.png','Cards/5_Heart.png','Cards/5_Spade.png'],
+            ['Cards/6_Clover.png','Cards/6_Diamond.png','Cards/6_Heart.png','Cards/6_Spade.png'],
+            ['Cards/7_Clover.png','Cards/7_Diamond.png','Cards/7_Heart.png','Cards/7_Spade.png'],
+            ['Cards/8_Clover.png','Cards/8_Diamond.png','Cards/8_Heart.png','Cards/8_Spade.png'],
+            ['Cards/9_Clover.png','Cards/9_Diamond.png','Cards/9_Heart.png','Cards/9_Spade.png'],
+            ['Cards/10_Clover.png','Cards/10_Diamond.png','Cards/10_Heart.png','Cards/10_Spade.png'],
+            ['Cards/J_Clover.png','Cards/J_Diamond.png','Cards/J_Heart.png','Cards/J_Spade.png'],
+            ['Cards/Q_Clover.png','Cards/Q_Diamond.png','Cards/Q_Heart.png','Cards/Q_Spade.png'],
+            ['Cards/K_Clover.png','Cards/K_Diamond.png','Cards/K_Heart.png','Cards/K_Spade.png']]
+
+my_deck = []
+enemy_deck = []
+enemy_show = False
+
+def back_card(num,show):
+    long = (38 * (num - 1) + 225)
+    pos = (scr_width / 2) + (long / 2) - 200
+    high = -100
+    for i in range(0,num,2):
+        if show:
+            card_img = pygame.image.load(card_pic[enemy_deck[i]][enemy_deck[i+1]])
+        else:
+            card_img = pygame.image.load('Cards/Back.png')
+        screen.blit(card_img, (pos, high))
+        pos -= 38
+
+
+
+def card(num):
+    long = (38*(num-1)+225)
+    pos = (scr_width/2) - (long/2)
+    high = 700
+
+    for i in range(0,num-1,2):
+        card_img = pygame.image.load(card_pic[my_deck[i]][my_deck[i+1]])
+        screen.blit(card_img, (pos, high))
+        pos += 38
+
+with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+    s.connect((HOST, PORT))
+    msg = ""
+
+
+    def send(msg):
+        s.sendall(msg.encode())
+
+    def lis():
+        global enemy_show
+        put = False
+        give = False
+        while True:
+            data = s.recv(1024)
+            msg = data.decode()
+            if put:
+                if msg == "-1":
+                    put = False
+                    continue
+                my_deck.append(int(msg))
+
+            if give:
+                if msg == "-1":
+                    give = False
+                    continue
+                enemy_deck.append(int(msg))
+
+            if msg == "SHOW":
+                enemy_show = True
+            elif msg == "YOUR CARD":
+                put = True
+            elif msg == "MY CARD":
+                give = True
+
+
+    while True:
+        data = s.recv(1024)
+        msg = data.decode()
+        if msg == "-1":
+            break
+        #print(int(msg))
+        my_deck.append(int(msg))
+
+    while True:
+        data = s.recv(1024)
+        msg = data.decode()
+        if msg == "-1":
+            break
+        #print(int(msg))
+        enemy_deck.append(int(msg))
+
+    pygame.init()
+
+    screen = pygame.display.set_mode((scr_width, scr_height))
+
+    # Title and Icon
+    pygame.display.set_caption("Some cute image")
+    icon = pygame.image.load('app9.jpg')
+    pygame.display.set_icon(icon)
+
+    onetime = True
+    running = True
+
+    Thread = threading.Thread(target=lis)
+    Thread.start()
+
+    while running:
+        screen.fill((0, 99, 0))
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_m and onetime:
+                    send("MM")
+                    onetime = False
+                    time.sleep(0.1)
+
+
+                if event.key == pygame.K_p and onetime:
+                    send("NO")
+                    onetime = False
+
+                if event.key == pygame.K_w:
+                    send("SHOW")
+                    onetime = False
+
+
+
+        back_card(len(enemy_deck), enemy_show)
+        card(len(my_deck))
+        pygame.display.update()
